@@ -18,11 +18,9 @@
 //   (verified geometrically: rotX(t) moves (0,0,1) to y=-sin t; rotY(t) moves
 //    (0,0,1) to x=+sin t; trailing edges are on the +Z side of their pivots.)
 
-import { FLIGHT } from '../config.js';
-
 // CFG-REQ: RENDER.SURFACE_MAX — max visual deflection (rad) per surface:
-// { elevator: 0.5, aileron: 0.35, rudder: 0.5, flapDrop: 0.35 }
-const SURFACE_MAX = { elevator: 0.5, aileron: 0.35, rudder: 0.5, flapDrop: 0.35 };
+// { elevator: 0.5, ailerons: 0.35, rudder: 0.5, flapDrop: 0.35 }
+const SURFACE_MAX = { elevator: 0.5, ailerons: 0.35, rudder: 0.5, flapDrop: 0.35 };
 // CFG-REQ: RENDER.PROP_RATE — visual prop rev/s = IDLE + TAS * COEF * throttle, cap MAX
 const PROP_IDLE = 9, PROP_COEF = 0.62, PROP_MAX = 46; // rev/s (≈540..2760 rpm)
 // CFG-REQ: RENDER.TRAIL — smoke trail tuning { len: 180, size: 0.4, opacity: 0.22 }
@@ -194,11 +192,11 @@ export function createAircraft(THREE) {
     const r = clamp(ctl?.rudder ?? 0, -1, 1);
     const flaps = clamp(ctl?.flaps ?? state?.flaps ?? 0, 0, 1);
 
-    // hinge deflections (signs documented at top of file)
-    elev.rotation.x = -e * SURFACE_MAX.elevator;
-    rud.rotation.y = -r * SURFACE_MAX.rudder;
-    ail.R.rotation.x = -a * SURFACE_MAX.ailerons + flaps * SURFACE_MAX.flapDrop;
-    ail.L.rotation.x = a * SURFACE_MAX.ailerons + flaps * SURFACE_MAX.flapDrop;
+    // hinge deflections (signs documented at top of file); +0 normalizes -0
+    elev.rotation.x = -e * SURFACE_MAX.elevator + 0;
+    rud.rotation.y = -r * SURFACE_MAX.rudder + 0;
+    ail.R.rotation.x = -a * SURFACE_MAX.ailerons + flaps * SURFACE_MAX.flapDrop + 0;
+    ail.L.rotation.x = a * SURFACE_MAX.ailerons + flaps * SURFACE_MAX.flapDrop + 0;
 
     // prop spin: rev/s scales with throttle * airspeed, capped (visual only)
     const now = Date.now();

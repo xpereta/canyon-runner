@@ -150,5 +150,25 @@ button.big:active { background: #2a6497; }
 
 /* Sensor diagnostics remain available even when permission fails. */
 #motion-btn { position: fixed; z-index: 45; top: 12px; left: 12px; padding: 12px; background: #1d4f7c; color: white; border-radius: 10px; }
-#motion-btn[hidden], #cr-gyro-debug[hidden] { display: none; }
+#motion-btn[hidden], #cr-gyro-debug[hidden], #cr-ctrldbg[hidden] { display: none; }
 #cr-gyro-debug { top: calc(55px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); max-width: min(85vw, 420px); white-space: pre-line; font-size: 12px; line-height: 1.45; }
+
+/* CONTROL DEBUG: live command bars, under the minimap; shares the GYRO DEBUG toggle. */
+#cr-ctrldbg {
+  position: absolute; top: calc(286px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
+  width: min(320px, calc(100vw - 24px)); font-size: 11px; line-height: 1.3;
+}
+#cr-ctrldbg .head { font-weight: 800; letter-spacing: .06em; opacity: .9; margin-bottom: 3px; }
+#cr-ctrldbg .row { display: flex; align-items: center; gap: 6px; margin: 2.5px 0; }
+#cr-ctrldbg .lbl { width: 62px; text-transform: uppercase; opacity: .7; }
+#cr-ctrldbg .bar {
+  position: relative; flex: 1; height: 10px; overflow: hidden;
+  border: 1px solid rgba(120,170,220,.35); border-radius: 3px; background: rgba(10,18,28,.55);
+}
+#cr-ctrldbg .bar .tick { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(160,200,240,.5); }
+#cr-ctrldbg .bar .f { position: absolute; top: 1px; bottom: 1px; left: 50%; width: 0; background: #7ab8ff; border-radius: 2px; }
+#cr-ctrldbg .val { width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
+#cr-ctrldbg .row.flash .bar { border-color: #ff5a5a; }
+#cr-ctrldbg .row.flash .f { background: #ff5a5a; animation: cr-blink .4s steps(2, start) infinite; }
+#cr-gyro-toggle.on { background: rgba(60,100,140,.85); border-color: #7ab8ff; }

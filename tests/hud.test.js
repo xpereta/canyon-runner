@@ -6,6 +6,7 @@ import {
   fmtSpeedKmh, fmtSpeedKts, fmtAlt, fmtAgl, fmtVsi,
   headingOf, fmtHeading, cardinalOf, chooseLandmarkLabel,
   fmtFlaps, turnNeedleDeg, drawMinimap, createHud,
+  dbgBarGeom, fmtDbg,
 } from '../src/ui/hud.js';
 import { qFromEuler } from '../src/core/quat.js';
 import { createTerrain } from '../src/core/terrain.js';
@@ -184,4 +185,128 @@ test('drawMinimap is pure over a plain ctx surface', () => {
   });
   assert.doesNotThrow(() => drawMinimap(ctx, terrain, state, { size: 256, range: 3200 }));
   assert.ok(calls.includes('clip') && calls.includes('stroke') && calls.includes('fillText'));
+});
+
+// ---------------- control-debug overlay ----------------
+
+test('dbgBarGeom + fmtDbg: bipolar grows from center, uni from left', () => {
+  assert.deepEqual(dbgBarGeom('bipolar', 0), { left: 50, width: 0 });
+  assert.deepEqual(dbgBarGeom('bipolar', -1), { left: 0, width: 50 });
+  assert.deepEqual(dbgBarGeom('bipolar', 0.4), { left: 50, width: 20 });
+  assert.deepEqual(dbgBarGeom('bipolar', -2), { left: 0, width: 50 }); // clamped
+  assert.deepEqual(dbgBarGeom('uni', 0.75), { left: 0, width: 75 });
+  assert.deepEqual(dbgBarGeom('uni', NaN), { left: 0, width: 0 });
+  assert.equal(fmtDbg(0.35), '+0.35');
+  assert.equal(fmtDbg(-0.8), '-0.80');
+  assert.equal(fmtDbg(undefined), '+0.00');
+});
+
+function makeFakeStack(vals, tgt) {
+  let getCalls = 0;
+  return {
+    target: { throttle: 0, flaps: 0, trim: 0, elevator: 0, aileron: 0, rudder: 0, ...tgt },
+    setChannel() {},
+    get() { getCalls++; return { ...vals }; },
+    _calls: () => getCalls,
+  };
+}
+function makeFakeGyro(axes) {
+  return {
+    active: true,
+    read: () => ({ ...axes }),
+    recalibrate() {},
+    diagnostics: () => ({
+      secure: true, permission: 'granted', active: true, events: 7, invalidEvents: 0,
+      raw: { beta: 47.2, gamma: 3.1 }, neutral: { beta: 45, gamma: 0 },
+      axes: { ...axes }, screenAngle: 90,
+    }),
+  };
+}
+
+test('control-debug: hidden by default; GYRO DEBUG shows/hides both panels', () => {
+  const { doc } = makeFakeDoc();
+  const hud = createHud(doc, createTerrain(20261114));
+  const panel = walkFind(doc.body, el => el.id === 'cr-ctrldbg');
+  assert.ok(panel, 'cr-ctrldbg overlay built');
+  for (const key of ['pitch', 'roll', 'elevator', 'aileron', 'rudder', 'throttle', 'flaps', 'trim'])
+    assert.ok(walkFind(panel, el => el.id === 'cr-dbg-' + key), `row cr-dbg-${key}`);
+  assert.equal(panel.hidden, true, 'hidden until toggled');
+  assert.equal(hud.debugVisible(), false);
+  hud.setDebug(true);
+  assert.equal(hud.debugVisible(), true);
+  assert.equal(panel.hidden, false);
+  hud.setDebug(false);
+  assert.equal(hud.debugVisible(), false);
+  hud.dispose();
+});
+
+test('control-debug: update writes raw axes + final surfaces (fake stack/gyro)', () => {
+  const { doc } = makeFakeDoc();
+  const terrain = createTerrain(20261114);
+  const hud = createHud(doc, terrain);
+  hud.bindStack(makeFakeStack(
+    { elevator: 0.8, aileron: -0.25, rudder: 0, throttle: 0.6, flaps: 1 / 3, trim: -0.1 },
+    { elevator: 1 }, // target lags behind -> '->' annotation
+  ));
+  hud.bindGyro(makeFakeGyro({ pitchAxis: -0.5, rollAxis: 0.25 }));
+  hud.setDebug(true);
+  const state = createAircraft();
+  resetTo(state, terrain.spawn);
+  hud.update(state, []);
+
+  const panel = walkFind(doc.body, el => el.id === 'cr-ctrldbg');
+  const row = k => walkFind(panel, el => el.id === 'cr-dbg-' + k);
+  const valText = k => row(k).children[2].textContent;
+  const fill = k => { const bar = row(k).children[1]; return bar.children[bar.children.length - 1]; };
+
+  assert.ok(valText('elevator').includes('+0.80'), `elevator val: ${valText('elevator')}`);
+  assert.ok(valText('elevator').includes('\u2192+1.00'), 'lagging target annotated');
+  assert.ok(valText('pitch').includes('-0.50'), `raw pitch val: ${valText('pitch')}`);
+  assert.ok(valText('roll').includes('+0.25'), `raw roll val: ${valText('roll')}`);
+  assert.ok(valText('aileron').includes('-0.25'));
+  assert.ok(valText('throttle').includes('+0.60'));
+  assert.ok(valText('flaps').includes('+0.33'));
+  // bar geometry actually moved (raw pitch -0.5 -> left 25%, width 25%)
+  assert.equal(fill('pitch').style.left, '25%');
+  assert.equal(fill('pitch').style.width, '25%');
+  assert.equal(fill('throttle').style.width, '60%');
+  hud.dispose();
+});
+
+test('control-debug: zero cost when hidden (stack.get never called for it)', () => {
+  const { doc } = makeFakeDoc();
+  const terrain = createTerrain(20261114);
+  const hud = createHud(doc, terrain);
+  const fake = makeFakeStack({ elevator: 0, aileron: 0, rudder: 0, throttle: 0, flaps: 0, trim: 0 });
+  hud.bindStack(fake);
+  hud.bindGyro(makeFakeGyro({ pitchAxis: 0.9, rollAxis: 0 }));
+  const state = createAircraft();
+  resetTo(state, terrain.spawn);
+  hud.update(state, []);
+  hud.update(state, []);
+  assert.equal(fake._calls(), 0, 'overlay hidden -> no debug reads');
+  hud.setDebug(true);
+  hud.update(state, []);
+  assert.ok(fake._calls() >= 1, 'overlay visible -> values pulled every frame');
+  hud.dispose();
+});
+
+test('control-debug: elevator row flashes on stall', () => {
+  const { doc } = makeFakeDoc();
+  const terrain = createTerrain(20261114);
+  const hud = createHud(doc, terrain);
+  hud.bindStack(makeFakeStack({ elevator: -0.3, aileron: 0, rudder: 0, throttle: 1, flaps: 0, trim: 0 }));
+  hud.setDebug(true);
+  const state = createAircraft();
+  resetTo(state, terrain.spawn);
+  hud.update(state, ['stall-warning']);
+  const panel = walkFind(doc.body, el => el.id === 'cr-ctrldbg');
+  const elevRow = walkFind(panel, el => el.id === 'cr-dbg-elevator');
+  assert.ok(elevRow.classList.contains('flash'), 'elevator row flashes while stalling');
+  // recovery (no warning, low alpha) clears the flash on the next frame
+  state.alpha = 0;
+  state.time += 3; // past the STALL_BANNER_S latch
+  hud.update(state, ['stall-recovered']);
+  assert.ok(!elevRow.classList.contains('flash'), 'flash clears after recovery');
+  hud.dispose();
 });

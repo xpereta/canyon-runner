@@ -82,6 +82,23 @@ export function turnNeedleDeg(omega) {
   return Math.round(r * 45);
 }
 
+// ---------------- control-debug overlay helpers (pure, no DOM) ----------------
+
+// CFG-REQ: CONTROL_DEBUG fill gain — 'bipolar' channels are -1..+1 (fill grows
+// from the center tick), 'uni' channels are 0..1 (fill grows from the left).
+// Returns fill geometry in % {left, width} for the bar's fill element.
+export function dbgBarGeom(kind, value) {
+  const v = Math.max(-1, Math.min(1, Number.isFinite(value) ? value : 0));
+  if (kind === 'bipolar') return { left: v < 0 ? 50 + v * 50 : 50, width: Math.abs(v) * 50 };
+  return { left: 0, width: Math.max(0, v) * 100 };
+}
+
+// Signed 2-decimal value for the debug rows (+0.35 / -0.80).
+export function fmtDbg(v) {
+  const n = Number.isFinite(v) ? v : 0;
+  return (n >= 0 ? '+' : '') + n.toFixed(2);
+}
+
 // ---------------- vector minimap (pure ctx; any 2D canvas-like surface) ----------------
 
 // Draws north-up: world +X east -> screen +x, world +Z south -> screen +y (north up).
@@ -278,6 +295,46 @@ export function createHud(doc, terrain) {
   gyroToggle.setAttribute('role', 'button');
   const gyroDebug = div('cr-gyro-debug', 'panel');
   gyroDebug.hidden = true;
+
+  // CONTROL DEBUG overlay: live bars for raw gyro axes + final surface commands.
+  // Shares the GYRO DEBUG toggle (shown/hidden together). Rows are built once;
+  // update() only writes fill geometry + text, and only while visible (zero cost
+  // when hidden).
+  const ctrlDbg = div('cr-ctrldbg', 'panel');
+  ctrlDbg.hidden = true;
+  ctrlDbg.appendChild(span('head', 'CONTROL DEBUG'));
+  function dbgRow(key, label, kind) {
+    const row = div('cr-dbg-' + key, 'row');
+    row.appendChild(span('lbl', label));
+    const bar = div(null, 'bar');
+    if (kind === 'bipolar') bar.appendChild(div(null, 'tick'));
+    const fill = div(null, 'f');
+    bar.appendChild(fill);
+    row.appendChild(bar);
+    const val = span('val', '0.00');
+    row.appendChild(val);
+    ctrlDbg.appendChild(row);
+    return { row, fill, val, kind };
+  }
+  const dbgRows = {
+    pitch: dbgRow('pitch', 'raw pitch', 'bipolar'),   // gyro pitchAxis (before stack)
+    roll: dbgRow('roll', 'raw roll', 'bipolar'),      // gyro rollAxis (before stack)
+    elevator: dbgRow('elevator', 'elevator', 'bipolar'),
+    aileron: dbgRow('aileron', 'aileron', 'bipolar'),
+    rudder: dbgRow('rudder', 'rudder', 'bipolar'),
+    throttle: dbgRow('throttle', 'throttle', 'uni'),
+    flaps: dbgRow('flaps', 'flaps', 'uni'),
+    trim: dbgRow('trim', 'trim', 'bipolar'),
+  };
+  function setDbgRow(r, value, tgt) {
+    const g = dbgBarGeom(r.kind, value);
+    r.fill.style.left = g.left + '%';
+    r.fill.style.width = g.width + '%';
+    let t = fmtDbg(value);
+    // show the stack target next to the slew-limited output when they differ
+    if (Number.isFinite(tgt) && Math.abs(tgt - value) > 0.005) t += ' \u2192' + fmtDbg(tgt);
+    r.val.textContent = t;
+  }
   const reset = div('cr-reset', 'pill');
   reset.textContent = 'RESET';
   const flapBtns = div('cr-flapbtns');
@@ -311,12 +368,14 @@ export function createHud(doc, terrain) {
   root.appendChild(crashEl);
   root.appendChild(vignette);
   root.appendChild(gyroDebug);
+  root.appendChild(ctrlDbg);
   root.appendChild(widgets);
   root.appendChild(slider);
   doc.body.appendChild(root);
 
   // ---- state owned by the HUD ----
   let stack = null, gyro = null, respawnFn = null;
+  let debugCb = null; // optional cb wired by main.js (3D surface visual gain)
   let crashCount = 0;
   let stallUntil = -1;
   let lastSeenTime = 0;
@@ -365,7 +424,17 @@ export function createHud(doc, terrain) {
   on(flapMinus, 'click', () => {
     if (stack) stack.setChannel('flaps', Math.max(0, (stack.target?.flaps ?? 0) - FLAP_STEP));
   });
-  on(gyroToggle, 'click', () => { gyroDebug.hidden = !gyroDebug.hidden; });
+  // GYRO DEBUG toggles BOTH panels: gyro diagnostics + control debug overlay.
+  function setDebug(on) {
+    on = !!on;
+    gyroDebug.hidden = !on;
+    ctrlDbg.hidden = !on;
+    gyroToggle.classList.toggle('on', on);
+    if (debugCb) debugCb(on);
+  }
+  function debugVisible() { return !ctrlDbg.hidden; }
+  function onDebugToggle(cb) { debugCb = cb; }
+  on(gyroToggle, 'click', () => setDebug(gyroDebug.hidden));
   on(recen, 'click', () => { gyro?.recalibrate(); banner('Gyro re-centered', 1500); });
   on(reset, 'click', () => { respawnFn?.(); });
 
@@ -412,6 +481,27 @@ export function createHud(doc, terrain) {
 
     vignette.classList.toggle('on', agl < PROX_AGL && agl >= 0 && !state.onGround);
 
+    // CONTROL DEBUG overlay: raw gyro axes vs final slew-limited surface
+    // commands (stack target shown as '->tgt' when it lags). Runs ONLY while
+    // visible: zero cost when hidden.
+    if (!ctrlDbg.hidden) {
+      const ctl = stack?.get?.() ?? null;
+      const axes = gyro?.read?.() ?? gyro?.diagnostics?.().axes ?? null;
+      setDbgRow(dbgRows.pitch, axes?.pitchAxis ?? 0);
+      setDbgRow(dbgRows.roll, axes?.rollAxis ?? 0);
+      if (ctl) {
+        const tgt = stack.target ?? {};
+        setDbgRow(dbgRows.elevator, ctl.elevator, tgt.elevator);
+        setDbgRow(dbgRows.aileron, ctl.aileron, tgt.aileron);
+        setDbgRow(dbgRows.rudder, ctl.rudder, tgt.rudder);
+        setDbgRow(dbgRows.throttle, ctl.throttle, tgt.throttle);
+        setDbgRow(dbgRows.flaps, ctl.flaps, tgt.flaps);
+        setDbgRow(dbgRows.trim, ctl.trim, tgt.trim);
+      }
+      // stall: flash the elevator row (assist is pulling for you / you are stuck)
+      dbgRows.elevator.row.classList.toggle('flash', stallOn);
+    }
+
     if (gyro) {
       recen.classList.toggle('show', !!gyro.active);
       tiltHint.classList.toggle('show', !!gyro.active);
@@ -439,7 +529,7 @@ export function createHud(doc, terrain) {
     root.remove?.();
   }
 
-  const hud = { update, bindStack, bindGyro, bindRespawn, banner, dispose, drawMinimap };
+  const hud = { update, bindStack, bindGyro, bindRespawn, banner, dispose, drawMinimap, setDebug, debugVisible, onDebugToggle };
   Object.defineProperty(hud, 'crashes', { get: () => crashCount });
   return hud;
 }

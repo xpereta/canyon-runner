@@ -21,6 +21,11 @@
 // CFG-REQ: RENDER.SURFACE_MAX — max visual deflection (rad) per surface:
 // { elevator: 0.5, ailerons: 0.35, rudder: 0.5, flapDrop: 0.35 }
 const SURFACE_MAX = { elevator: 0.5, ailerons: 0.35, rudder: 0.5, flapDrop: 0.35 };
+// CFG-REQ: RENDER.SURFACE_DEBUG_GAIN — hinge-deflection multiplier while the
+// HUD debug overlay is on (setDebugSurfaces(true)); makes stick-driven surface
+// motion visible from the 14 m chase cam. Flap drop is NOT scaled (it is a
+// setting, not a live stick command).
+const SURFACE_DEBUG_GAIN = 2;
 // CFG-REQ: RENDER.PROP_RATE — visual prop rev/s = IDLE + TAS * COEF * throttle, cap MAX
 const PROP_IDLE = 9, PROP_COEF = 0.62, PROP_MAX = 46; // rev/s (≈540..2760 rpm)
 // CFG-REQ: RENDER.TRAIL — smoke trail tuning { len: 180, size: 0.4, opacity: 0.22 }
@@ -144,6 +149,7 @@ export function createAircraft(THREE) {
   // ---- animation state ----
   const elev = elevPivot, rud = rudPivot;
   const ail = { R: group.getObjectByName('aileronR'), L: group.getObjectByName('aileronL') };
+  let surfaceGain = 1; // SURFACE_DEBUG_GAIN while HUD debug overlay is visible
   let lastT = 0; // internal clock (update gets no dt per contract)
   let propAngle = 0;
   const wheelSpin = { v: 0 };
@@ -193,10 +199,10 @@ export function createAircraft(THREE) {
     const flaps = clamp(ctl?.flaps ?? state?.flaps ?? 0, 0, 1);
 
     // hinge deflections (signs documented at top of file); +0 normalizes -0
-    elev.rotation.x = -e * SURFACE_MAX.elevator + 0;
-    rud.rotation.y = -r * SURFACE_MAX.rudder + 0;
-    ail.R.rotation.x = -a * SURFACE_MAX.ailerons + flaps * SURFACE_MAX.flapDrop + 0;
-    ail.L.rotation.x = a * SURFACE_MAX.ailerons + flaps * SURFACE_MAX.flapDrop + 0;
+    elev.rotation.x = -e * SURFACE_MAX.elevator * surfaceGain + 0;
+    rud.rotation.y = -r * SURFACE_MAX.rudder * surfaceGain + 0;
+    ail.R.rotation.x = -a * SURFACE_MAX.ailerons * surfaceGain + flaps * SURFACE_MAX.flapDrop + 0;
+    ail.L.rotation.x = a * SURFACE_MAX.ailerons * surfaceGain + flaps * SURFACE_MAX.flapDrop + 0;
 
     // prop spin: rev/s scales with throttle * airspeed, capped (visual only)
     const now = Date.now();
@@ -226,6 +232,10 @@ export function createAircraft(THREE) {
     if (!trailEnabled && trail && trail.parent) trail.parent.remove(trail);
   }
 
+  function setDebugSurfaces(on) {
+    surfaceGain = on ? SURFACE_DEBUG_GAIN : 1;
+  }
+
   function dispose() {
     for (const g of geos) g.dispose();
     for (const m of mats) m.dispose();
@@ -233,5 +243,5 @@ export function createAircraft(THREE) {
     geos.length = 0; mats.length = 0;
   }
 
-  return { group, update, setTrail, dispose };
+  return { group, update, setTrail, setDebugSurfaces, dispose };
 }

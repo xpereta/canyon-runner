@@ -56,6 +56,9 @@ const gyro = createGyro(window, CONTROLS);
 const hud = createHud(document, terrain);
 hud.bindStack(stack);
 hud.bindGyro(gyro);
+// GYRO DEBUG toggle also doubles 3D hinge deflection gain so surface motion is
+// visible from the chase cam while debugging (visual only; flight untouched).
+hud.onDebugToggle(on => ac.setDebugSurfaces(on));
 
 const state = createAircraft();
 resetTo(state, terrain.spawn);

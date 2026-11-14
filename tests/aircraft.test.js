@@ -110,3 +110,34 @@ test('prop group and control-surface pivots are named; setTrail toggles cheap Po
   assert.equal([...scene.children, ...ac.group.children].filter(o => o.isPoints).length, 0);
   ac.dispose();
 });
+
+test('setDebugSurfaces: 2x visual gain on stick-driven surfaces, flap drop unscaled', () => {
+  const ac = createAircraft(THREE);
+  const g = ac.group;
+  const elev = g.getObjectByName('elevatorPivot');
+  const rud = g.getObjectByName('rudderPivot');
+  const ailR = g.getObjectByName('aileronR');
+  const ctl = { ...ctl0, elevator: 0.5, rudder: 0.5, aileron: 0.5 };
+
+  ac.update(state, ctl);
+  const e0 = elev.rotation.x, r0 = rud.rotation.y, a0 = ailR.rotation.x;
+  assert.ok(e0 !== 0 && r0 !== 0 && a0 !== 0, 'baseline deflection nonzero');
+
+  ac.setDebugSurfaces(true);
+  ac.update(state, ctl);
+  assert.ok(Math.abs(elev.rotation.x - 2 * e0) < 1e-9, 'debug: elevator doubled');
+  assert.ok(Math.abs(rud.rotation.y - 2 * r0) < 1e-9, 'debug: rudder doubled');
+  assert.ok(Math.abs(ailR.rotation.x - 2 * a0) < 1e-9, 'debug: aileron doubled');
+
+  // flap drop contribution stays 1x even under debug gain
+  const flapCtl = { ...ctl0, flaps: 1 };
+  ac.update(state, flapCtl);
+  const flapA = ailR.rotation.x;
+  ac.setDebugSurfaces(false);
+  ac.update(state, flapCtl);
+  assert.ok(Math.abs(ailR.rotation.x - flapA) < 1e-9, 'flap drop identical with/without debug');
+
+  ac.update(state, ctl0);
+  assert.equal(elev.rotation.x, 0, 'neutral stays neutral under gain');
+  ac.dispose();
+});

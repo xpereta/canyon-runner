@@ -1,12 +1,12 @@
 // Canyon Runner — src/main.js (ui agent). Composition root: the ONLY file that
-// imports THREE (relative ./vendor/three.module.js — no bare 'three', no import
+// imports THREE (relative ../vendor/three.module.js — no bare 'three', no import
 // maps) and the only file wiring core + render + UI together.
 //
 // Wave-2 render modules are consumed strictly via their contract signatures:
 //   render/aircraft.js: createAircraft(THREE) -> { group, update(state, ctl) }
 //   render/sky.js:      createSky(THREE, scene) -> { dispose }
 
-import * as THREE from './vendor/three.module.js';
+import * as THREE from '../vendor/three.module.js';
 import { WORLD, PHYS, FLIGHT, CONTROLS, RENDER, HUD } from './config.js';
 import { createTerrain } from './core/terrain.js';
 import { createAircraft, resetTo, stepFlight } from './core/flight.js';

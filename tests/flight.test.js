@@ -231,3 +231,28 @@ test('damage accumulates and never exceeds 1; repeated bounces do not refire mid
   assert.equal(st.damage, 1, 'hard repeated ground contact ends at damage=1 (dead)');
   assert.ok(st._dead);
 });
+
+// Regression (orchestrator live-QA): taxiing off a mesa edge must NOT pin the
+// aircraft to the terrain face — it enters free flight and falls.
+test('cliff guard: taxi off a sharp terrain drop releases to free fall', () => {
+  const cliff = {
+    groundHeight: (x) => (x < 0 ? 1000 : 500),
+    groundInfo: (x) => ({ h: x < 0 ? 1000 : 500, type: 'grass' }),
+  };
+  const st = createAircraft();
+  resetTo(st, { x: -40, z: 0, headingDeg: 90, elevation: 1000 });
+  const ctl = ctlAll({ throttle: 1 });
+  let released = false;
+  for (let i = 0; i < Math.round(6 / DT); i++) {
+    stepFlight(st, ctl, cliff, DT);
+    if (!st.onGround) { released = true; break; }
+  }
+  assert.ok(released, 'aircraft must leave ground at cliff edge');
+  run2(st, ctl, 4);
+  assert.ok(st.pos.y < 990 && st.vel.y < 0, 'falls with gravity instead of tracking terrain face');
+  assert.ok(st.pos.y > 500, 'has not yet reached the lower plain in 4 s of fall');
+});
+function run2(st, ctl, seconds) {
+  for (let i = 0; i < Math.round(seconds / DT); i++) stepFlight(st, ctl, cliffFixture, DT);
+}
+const cliffFixture = { groundHeight: (x) => (x < 0 ? 1000 : 500), groundInfo: (x) => ({ h: x < 0 ? 1000 : 500, type: 'grass' }) };

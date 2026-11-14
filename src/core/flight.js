@@ -137,7 +137,18 @@ export function stepFlight(state, ctl, terrain, dt) {
     state.vel = { x: nose.x * s, y: 0, z: nose.z * s };
     state.pos.x += state.vel.x * dt;
     state.pos.z += state.vel.z * dt;
-    state.pos.y = ground;
+    // Cliff guard: taxiing off a significant terrain drop (mesa edge, canyon
+    // rim) puts the aircraft into free flight instead of pinning it to the
+    // terrain face. Drop > ~1 m/step at taxi speeds = steeper than any runway.
+    const newGround = terrain.groundHeight(state.pos.x, state.pos.z);
+    if (ground - newGround > 1.0 && s > 5) {
+      state.onGround = false;
+      state._inContact = false;
+      state.vel.y = 0;
+      state.q = qFromEuler(hd, 0, 0);
+      return events;
+    }
+    state.pos.y = newGround;
     state.q = qFromEuler(hd, 0, 0);
     state.omega = { p: 0, q: 0, r: 0 };
     state.alpha = 0; state.beta = 0;

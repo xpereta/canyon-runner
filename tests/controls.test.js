@@ -231,3 +231,16 @@ test('gyro diagnostics distinguish waiting, invalid and valid events', () => {
   assert.equal(g.diagnostics().raw.gamma, 2);
   assert.equal(g.diagnostics().events, 2);
 });
+
+// ---------------- control-debug overlay feed (stack-side contract) ----------------
+
+test('stack exposes slewed get() output + live target so the HUD overlay can show raw-vs-final', () => {
+  const s = createControlStack();
+  s.setChannel('elevator', 1);
+  s.step(DT);
+  const c = s.get();
+  assert.equal(s.target.elevator, 1, 'target = commanded value');
+  assert.ok(c.elevator > 0 && c.elevator < 1, `slewed output lags target (${c.elevator})`);
+  for (const k of ['elevator', 'aileron', 'rudder', 'throttle', 'flaps', 'trim'])
+    assert.ok(Number.isFinite(c[k]), `get().${k} must be finite for the debug rows`);
+});

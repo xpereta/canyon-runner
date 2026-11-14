@@ -154,8 +154,14 @@ export function stepFlight(state, ctl, terrain, dt) {
     state.alpha = 0; state.beta = 0;
     state._inContact = true;
 
-    // rotate?
-    if (s > F.ROTATE_V && elevator > 0.3) {
+    // rotate: liftoff when wing lift at the effective alpha of the pull
+    // (positive elevator raises tail / alpha) reaches ~0.95 of weight. This
+    // makes rotate speed physical (hard pull ~37 m/s, zero pull ~53 m/s from
+    // CL0 alone) so gentle gyro pulls fly instead of gluing the plane to the
+    // runway at 50+ m/s.
+    const alphaEff = Math.min(0.30, Math.max(0, elevator * 0.12));
+    const clGround = F.CL0 + F.CL_A * alphaEff;
+    if (s > 15 && state.damage < 0.5 && qbar * F.WING_S * clGround >= 0.95 * F.MASS * 9.81) {
       state.onGround = false;
       state.vel.y = 1.2;
       state.q = qFromEuler(hd, 0.08, 0);

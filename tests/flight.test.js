@@ -146,12 +146,14 @@ test('landing: -2 m/s at 40 m/s touches down gently, taxis, lifts off', () => {
   assert.equal(st.damage, 0, 'gentle touchdown must do no damage');
 
   const s0 = speed(st);
-  run(st, ctlAll({ throttle: 0.9 }), 4);
-  assert.ok(speed(st) > s0 + 3, `taxi accel expected: ${s0.toFixed(1)} -> ${speed(st).toFixed(1)}`);
-  run(st, ctlAll({ throttle: 0.9 }), 3); // keep rolling to build carry-off speed
+  let lifted = false;
+  const note = (s, e) => { if (e.includes('liftoff')) lifted = true; };
+  run(st, ctlAll({ throttle: 0.9 }), 4, note);
+  assert.ok(speed(st) > s0 + 3 || lifted, `taxi accel expected: ${s0.toFixed(1)} -> ${speed(st).toFixed(1)}`);
+  run(st, ctlAll({ throttle: 0.9 }), 3, note); // keep rolling to build carry-off speed
 
-  const evs = run(st, ctlAll({ throttle: 0.9, elevator: 0.6 }), 0.5); // brief rotation
-  assert.ok(evs.includes('liftoff'), 'liftoff expected with elevator hold above rotate speed');
+  const evs = run(st, ctlAll({ throttle: 0.9, elevator: 0.6 }), 0.5, note); // brief rotation
+  assert.ok(lifted, 'liftoff expected by rotate input or carry-off speed by now');
   assert.equal(st.onGround, false);
   // gentle climb-out after liftoff
   run(st, ctlAll({ throttle: 0.9, elevator: 0.05 }), 10);
@@ -256,3 +258,23 @@ function run2(st, ctl, seconds) {
   for (let i = 0; i < Math.round(seconds / DT); i++) stepFlight(st, ctl, cliffFixture, DT);
 }
 const cliffFixture = { groundHeight: (x) => (x < 0 ? 1000 : 500), groundInfo: (x) => ({ h: x < 0 ? 1000 : 500, type: 'grass' }) };
+
+// LIVE-QA regression: a GENTLE pull (elevator 0.25) at full throttle must
+// actually get the plane airborne — it was gated on elevator > 0.3 and the
+// aircraft stayed glued to the runway past 55 m/s.
+test('takeoff: gentle elevator 0.25 at full throttle lifts off, no hard gate', () => {
+  const flat = {
+    groundHeight: () => 500,
+    groundInfo: () => ({ h: 500, type: 'grass' }),
+  };
+  const st = createAircraft();
+  resetTo(st, { x: 0, z: 0, headingDeg: 90, elevation: 500 });
+  const ctl = ctlAll({ throttle: 1, elevator: 0.25 });
+  let liftoffT = -1;
+  for (let i = 0; i < Math.round(30 / DT); i++) {
+    const evs = stepFlight(st, ctl, flat, DT);
+    if (evs.includes('liftoff')) { liftoffT = st.time; break; }
+  }
+  assert.ok(liftoffT >= 0 && liftoffT < 25, `liftoff within 25 s expected, got ${liftoffT}`);
+  assert.equal(st.damage, 0);
+});

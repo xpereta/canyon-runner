@@ -76,5 +76,5 @@ export function eulerFromQ(q) {
   const R02 = 2 * (x * z + w * y);        // = sa*cb
   const R22 = 1 - 2 * (x * x + y * y);    // = ca*cb
   const yawAngle = Math.atan2(R02, R22);  // a = -yawRad
-  return { yaw: -yawAngle, pitch, roll: -rollAngle };
+  return { yaw: -yawAngle + 0, pitch: pitch + 0, roll: -rollAngle + 0 }; // +0 normalizes -0
 }

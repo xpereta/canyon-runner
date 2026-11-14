@@ -312,6 +312,7 @@ export function createHud(doc, terrain) {
   let stack = null, gyro = null, respawnFn = null;
   let crashCount = 0;
   let stallUntil = -1;
+  let lastSeenTime = 0;
   let bannerTimer = null;
   let heldThrottle = null; // set while the slider finger is down
   const listeners = [];
@@ -388,6 +389,8 @@ export function createHud(doc, terrain) {
     needle.style.transform = `translateX(-50%) rotate(${turnNeedleDeg(state.omega)}deg)`;
 
     // stall banner: live alpha + latched from warning events
+    if (state.time < lastSeenTime) stallUntil = -1; // respawn/restart rewound the clock
+    lastSeenTime = state.time;
     if (events && events.includes('stall-warning')) stallUntil = state.time + STALL_BANNER_S;
     if (events && events.includes('stall-recovered') && stallUntil > state.time + 0.5) {
       stallUntil = state.time + 0.5; // quick wink on recovery

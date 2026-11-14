@@ -74,6 +74,7 @@ export const RENDER = {
   FOG_NEAR: 900, FOG_FAR: 3400,
   SKY_TOP: 0x3a6db8, SKY_HORIZON: 0xbfd3e6, SUN: 0xfff2df,
   WATER_COLOR: 0x2e5f8a, WATER_ALPHA: 0.75,
+  HEMI_INTENSITY: 1.0, SUN_INTENSITY: 1.25,  // canyon walls read better with stronger bounce
   CAM_BACK: 14, CAM_UP: 4, CAM_SMOOTH: 0.12,  // chase camera m / factor
 }
 

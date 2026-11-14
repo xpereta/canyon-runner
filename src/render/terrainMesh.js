@@ -63,7 +63,7 @@ export function createWorld(THREE, scene, terrain, cfg) {
         const inv = 1 / Math.hypot(dhdx, 1, dhdz);
         nor[vi * 3] = -dhdx * inv; nor[vi * 3 + 1] = inv; nor[vi * 3 + 2] = -dhdz * inv;
         const base = TYPE_COLOR[types[vi]] ?? TYPE_COLOR.grass;
-        const shade = Math.min(1.12, 1.10 / (1 + 0.55 * slope)) +
+        const shade = Math.min(1.12, Math.max(0.45, 1.10 / (1 + 0.35 * slope))) +
           (hg[vi] > 1300 ? 0.04 : hg[vi] < 900 ? -0.05 : 0);
         col[vi * 3] = base[0] * shade;
         col[vi * 3 + 1] = base[1] * shade;

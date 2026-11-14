@@ -38,7 +38,9 @@ function noteErr(e) {
 const terrain = createTerrain(WORLD.SEED);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 6000);
+// far must clear the sky dome (radius 19.2 km) — with depthWrite off on the
+// dome this costs no depth precision in practice.
+const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 22000);
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);

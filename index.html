@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canyon Runner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a121c">
+<link rel="stylesheet" href="./src/ui/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<div id="start-overlay">
+  <div class="card">
+    <h1>Canyon Runner</h1>
+    <p class="tag">Thread the canyon at low altitude. Tilt your phone to fly.</p>
+    <button id="begin-btn" class="big">TAP TO BEGIN</button>
+    <button id="motion-btn" class="big" hidden>Enable motion controls</button>
+    <p id="kb-notice" hidden>Keyboard: W/S throttle, arrows pitch/roll, A/D rudder, F flaps, T/G trim, R reset</p>
+  </div>
+</div>
+
+<div id="rotate-hint" aria-hidden="true">Rotate to landscape for the best view</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -62,13 +62,21 @@ test('level flight: trim holds altitude within 20m and speed within 15% over 120
 
   // Trim search: slow integral on vertical speed (trim authority is large;
   // aggressive gains would fly the phugoid ourselves).
-  let calmSince = -1, locked = false;
-  run(st, ctl, 160, () => {
+  let calmSince = -1, locked = false, vySum = 0, vyN = 0;
+  run(st, ctl, 480, () => {
     if (locked) return;
-    if (Math.abs(st.vel.y) < 0.05) {
-      if (calmSince < 0) calmSince = st.time;
-      if (st.time - calmSince > 10) { locked = true; return; }
-    } else calmSince = -1;
+    // Lock on the 10 s MEAN vertical speed over a sustained 60 s calm: the
+    // integrator needs time to find the true power-trim equilibrium; locking
+    // on a transient vy zero-crossing freezes a trim that then sinks ~0.2 m/s.
+    vySum += st.vel.y; vyN++;
+    if (vyN >= 600) {
+      const mean = vySum / vyN;
+      vySum = 0; vyN = 0;
+      if (Math.abs(mean) < 0.05) {
+        if (calmSince < 0) calmSince = st.time;
+        if (st.time - calmSince > 60) { locked = true; return; }
+      } else calmSince = -1;
+    }
     ctl.trim = clamp(ctl.trim - DT * 0.0015 * st.vel.y, -0.6, 0.6);
   });
   assert.ok(locked, 'trim search should settle to level flight');

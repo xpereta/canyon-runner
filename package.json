@@ -1,0 +1,6 @@
+{
+  "name": "canyon-runner",
+  "private": true,
+  "type": "module",
+  "description": "iOS gyro-tilt canyon flight sim (static ES modules, no deps)"
+}

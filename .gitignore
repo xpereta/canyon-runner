@@ -1,0 +1,3 @@
+.worktrees/
+*.png
+node_modules/

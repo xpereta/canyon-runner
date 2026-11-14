@@ -1,0 +1,149 @@
+/* Canyon Runner — dark aviation HUD. All HUD panels are built by src/ui/hud.js. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #0a121c;
+  color: #d7e6f2;
+  font-family: -apple-system, "SF Pro Display", system-ui, sans-serif;
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+#app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* ---------- start overlay ---------- */
+#start-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(120% 100% at 50% 0%, #16283c 0%, #0a121c 70%);
+}
+#start-overlay.hidden { display: none; }
+#start-overlay .card {
+  text-align: center;
+  padding: max(24px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-right))
+           max(28px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
+  max-width: min(92vw, 480px);
+}
+#start-overlay h1 { font-size: clamp(2rem, 8vw, 3.2rem); letter-spacing: .08em; }
+#start-overlay .tag { margin: .6em 0 1.6em; opacity: .75; font-size: 1.05rem; }
+button.big {
+  display: block; width: 100%; min-height: 56px; margin: 10px 0;
+  font-size: 1.25rem; font-weight: 700; letter-spacing: .06em;
+  color: #eaf4ff; background: #1d4f7c; border: 1px solid #3d78ac; border-radius: 14px;
+  touch-action: manipulation;
+}
+button.big:active { background: #2a6497; }
+#kb-notice { margin-top: 1em; font-size: .85rem; opacity: .65; line-height: 1.5; }
+
+/* portrait rotate hint (landscape is the promoted orientation) */
+#rotate-hint {
+  position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 40; display: none;
+  padding: 8px 16px; border-radius: 10px; font-size: .9rem;
+  background: rgba(10,18,28,.72); border: 1px solid rgba(120,170,220,.35);
+}
+@media (orientation: portrait) { #rotate-hint { display: block; } }
+
+/* ---------- HUD root ---------- */
+#cr-hud { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+#cr-hud .panel {
+  position: absolute; padding: 8px 12px;
+  background: rgba(10,18,28,.55); border: 1px solid rgba(120,170,220,.30);
+  border-radius: 12px; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  font-variant-numeric: tabular-nums;
+}
+
+/* airspeed (left) */
+#cr-asi { left: calc(12px + env(safe-area-inset-left)); bottom: calc(16px + env(safe-area-inset-bottom)); }
+#cr-asi .big { font-size: clamp(2rem, 6vw, 3rem); font-weight: 800; line-height: 1; }
+#cr-asi .unit { font-size: .8rem; opacity: .7; }
+#cr-asi .kts { font-size: .95rem; opacity: .8; margin-top: 2px; }
+#cr-asi .vsi { font-size: .95rem; margin-top: 4px; color: #9fd0a5; }
+
+/* altitude (right of ASI, same corner cluster) */
+#cr-alt { right: calc(12px + env(safe-area-inset-right)); bottom: calc(96px + env(safe-area-inset-bottom)); text-align: right; }
+#cr-alt .msl { font-size: 1.6rem; font-weight: 700; }
+#cr-alt .agl { font-size: 1.05rem; color: #ffd27a; }
+
+/* heading strip (top center) */
+#cr-heading { left: 50%; top: calc(10px + env(safe-area-inset-top)); transform: translateX(-50%);
+  display: flex; gap: 10px; align-items: baseline; font-size: 1.15rem; }
+#cr-heading .hdg { font-weight: 800; font-size: 1.4rem; }
+#cr-heading .card4 { opacity: .8; }
+#cr-heading .landmark { opacity: .75; font-size: .95rem; }
+
+/* minimap (top-left) */
+#cr-minimap {
+  position: absolute; left: calc(12px + env(safe-area-inset-left)); top: calc(10px + env(safe-area-inset-top));
+  width: var(--cr-mm, 256px); height: var(--cr-mm, 256px);
+  border-radius: 50%; border: 1px solid rgba(120,170,220,.35);
+  background: rgba(8,14,22,.6);
+}
+
+/* throttle bar + flaps + trim (right edge column) */
+#cr-throttlebar {
+  position: absolute; right: calc(12px + env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 22px; height: 200px; border: 1px solid rgba(120,170,220,.4); border-radius: 6px;
+  background: rgba(10,18,28,.5); overflow: hidden;
+}
+#cr-throttlebar .fill { position: absolute; bottom: 0; left: 0; right: 0; height: 0%;
+  background: linear-gradient(#59c06f, #2f7d44); }
+#cr-flaps { position: absolute; right: calc(42px + env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column-reverse; gap: 6px; }
+#cr-flaps .det { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(120,170,220,.4); }
+#cr-flaps .det.on { background: #7ab8ff; }
+#cr-trim { position: absolute; right: calc(64px + env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 10px; height: 200px; border: 1px solid rgba(120,170,220,.35); border-radius: 5px; }
+#cr-trim .dot { position: absolute; left: -4px; right: -4px; height: 6px; border-radius: 3px; background: #ffd27a; bottom: 50%; }
+
+/* turn coordinator */
+#cr-turn { left: calc(16px + env(safe-area-inset-left)); bottom: calc(140px + env(safe-area-inset-bottom));
+  width: 46px; height: 46px; padding: 0; }
+#cr-turn .needle { position: absolute; left: 50%; top: 50%; width: 2px; height: 18px;
+  background: #eaf4ff; transform-origin: 50% 0%; }
+
+/* banners */
+#cr-banner { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%);
+  padding: 12px 22px; font-size: 1.35rem; font-weight: 800; letter-spacing: .05em;
+  background: rgba(20,10,10,.75); border: 1px solid #b05a5a; border-radius: 12px; display: none; }
+#cr-banner.show { display: block; }
+#cr-stall { position: absolute; left: 50%; top: 24%; transform: translate(-50%, -50%);
+  padding: 8px 20px; font-size: 1.6rem; font-weight: 900; color: #ff5a5a;
+  border: 2px solid #ff5a5a; border-radius: 10px; background: rgba(30,8,8,.6); display: none; }
+#cr-stall.show { display: block; animation: cr-blink .5s steps(2, start) infinite; }
+@keyframes cr-blink { to { visibility: hidden; } }
+#cr-crashes { position: absolute; left: 50%; top: calc(10px + env(safe-area-inset-top));
+  transform: translateX(70px); font-size: .95rem; opacity: .8; }
+
+/* proximity vignette */
+#cr-vignette { position: absolute; inset: 0; display: none; pointer-events: none;
+  box-shadow: inset 0 0 120px 40px rgba(255,120,40,.35); }
+#cr-vignette.on { display: block; }
+
+/* touch widgets (right thumb zone) — pointer-events re-enabled here */
+#cr-widgets { position: absolute; right: calc(36px + env(safe-area-inset-right));
+  bottom: calc(230px + env(safe-area-inset-bottom)); pointer-events: auto;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.pill { min-height: 44px; padding: 10px 16px; font-size: 1rem; font-weight: 700;
+  color: #eaf4ff; background: rgba(20,40,60,.75); border: 1px solid rgba(140,190,240,.5);
+  border-radius: 22px; touch-action: none; }
+.pill:active { background: rgba(60,100,140,.8); }
+#cr-recen, #cr-tilt-hint { display: none; }
+#cr-recen.show, #cr-tilt-hint.show { display: inline-block; }
+#cr-tilt-hint { pointer-events: none; font-weight: 500; font-size: .85rem; opacity: .85; }
+#cr-slider {
+  position: absolute; right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 54px; height: 200px; border-radius: 10px;
+  background: rgba(30,50,70,.28); border: 1px solid rgba(120,170,220,.25);
+  pointer-events: auto; touch-action: none;
+}
+#cr-slider .knob { position: absolute; left: 4px; right: 4px; height: 22px; bottom: 0;
+  border-radius: 6px; background: rgba(130,190,250,.85); }
+#cr-flapbtns { display: flex; gap: 10px; }

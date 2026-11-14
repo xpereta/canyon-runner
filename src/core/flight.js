@@ -19,7 +19,7 @@ const CY_BETA = 0.7;
 // always break nose-down so it stays recoverable / accessible)
 const STALL_NOSE_DROP = 6.0;
 // CFG-REQ: gain of the ALPHA_LIMIT assist elevator adder (soft stall prevention)
-const ALPHA_LIMIT_GAIN = 1.6;
+const ALPHA_LIMIT_GAIN = 2.5;
 // CFG-REQ: SPIRAL_STAB roll-rate back-term gain toward wings level (1/s)
 const SPIRAL_K = 0.6;
 // CFG-REQ: rolling-friction coefficient on the ground

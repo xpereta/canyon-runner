@@ -273,6 +273,11 @@ export function createHud(doc, terrain) {
   tiltHint.textContent = 'Hold level, tilt to steer';
   const recen = div('cr-recen', 'pill');
   recen.textContent = 'RECENTER GYRO';
+  const gyroToggle = div('cr-gyro-toggle', 'pill');
+  gyroToggle.textContent = 'GYRO DEBUG';
+  gyroToggle.setAttribute('role', 'button');
+  const gyroDebug = div('cr-gyro-debug', 'panel');
+  gyroDebug.hidden = true;
   const reset = div('cr-reset', 'pill');
   reset.textContent = 'RESET';
   const flapBtns = div('cr-flapbtns');
@@ -282,6 +287,7 @@ export function createHud(doc, terrain) {
   flapPlus.textContent = 'FLAPS +';
   flapBtns.appendChild(flapMinus);
   flapBtns.appendChild(flapPlus);
+  widgets.appendChild(gyroToggle);
   widgets.appendChild(tiltHint);
   widgets.appendChild(recen);
   widgets.appendChild(reset);
@@ -304,6 +310,7 @@ export function createHud(doc, terrain) {
   root.appendChild(stallEl);
   root.appendChild(crashEl);
   root.appendChild(vignette);
+  root.appendChild(gyroDebug);
   root.appendChild(widgets);
   root.appendChild(slider);
   doc.body.appendChild(root);
@@ -358,6 +365,7 @@ export function createHud(doc, terrain) {
   on(flapMinus, 'click', () => {
     if (stack) stack.setChannel('flaps', Math.max(0, (stack.target?.flaps ?? 0) - FLAP_STEP));
   });
+  on(gyroToggle, 'click', () => { gyroDebug.hidden = !gyroDebug.hidden; });
   on(recen, 'click', () => { gyro?.recalibrate(); banner('Gyro re-centered', 1500); });
   on(reset, 'click', () => { respawnFn?.(); });
 
@@ -407,6 +415,11 @@ export function createHud(doc, terrain) {
     if (gyro) {
       recen.classList.toggle('show', !!gyro.active);
       tiltHint.classList.toggle('show', !!gyro.active);
+      if (!gyroDebug.hidden) {
+        const d = gyro.diagnostics();
+        const pose = p => p ? `β ${p.beta.toFixed(1)}° γ ${p.gamma.toFixed(1)}°` : '—';
+        gyroDebug.textContent = `GYRO | ${d.secure ? 'secure' : 'INSECURE: use HTTPS'} | permission ${d.permission} | ${d.active ? 'listening' : 'off'}\nEvents ${d.events} (invalid ${d.invalidEvents}) | screen ${d.screenAngle}°\nRaw ${pose(d.raw)} | neutral ${pose(d.neutral)}\nPitch ${d.axes.pitchAxis.toFixed(2)} | roll ${d.axes.rollAxis.toFixed(2)}\nNo events? Check HTTPS and motion permission in Safari settings.`;
+      }
     }
 
     // throttle held on the slider keeps re-writing its channel every frame

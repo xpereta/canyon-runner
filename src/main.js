@@ -227,27 +227,31 @@ function startLoop() {
   rafId = requestAnimationFrame(frame);
 }
 
-beginBtn.addEventListener('click', () => {
+beginBtn.addEventListener('click', async () => {
+  // Invoke the iOS permission API synchronously within the actual tap handler.
+  const permission = gyro.needsPermission() ? gyro.requestPermission() : Promise.resolve(!!window.DeviceOrientationEvent);
   overlay.classList.add('hidden');
   kbNotice.hidden = false;
   setTimeout(() => { kbNotice.hidden = true; }, KB_NOTICE_MS);
-  if (gyro.needsPermission()) {
-    motionBtn.hidden = false; // iOS: permission must ride this separate gesture
-  } else if (window.DeviceOrientationEvent) {
-    gyro.start();
-    if (gyro.active) hud.banner('Gyro active — hold level, tilt to steer', 2500);
-  }
   startLoop();
+  const ok = await permission;
+  if (ok) {
+    gyro.start();
+    hud.banner('Motion enabled — hold your neutral pose', 2500);
+  } else {
+    motionBtn.hidden = false;
+    hud.banner('Motion unavailable or denied — see GYRO diagnostics', 3500);
+  }
 });
 
 motionBtn.addEventListener('click', async () => {
-  motionBtn.hidden = true;
-  const ok = await gyro.requestPermission();
+  const ok = !!window.DeviceOrientationEvent && await gyro.requestPermission();
   if (ok) {
+    motionBtn.hidden = true;
     gyro.start();
-    hud.banner('Gyro active — hold level, tilt to steer', 2500);
+    hud.banner('Motion enabled — hold your neutral pose', 2500);
   } else {
-    hud.banner('Motion denied — keyboard controls active', 3000);
+    hud.banner('Motion unavailable or denied — see GYRO diagnostics', 3500);
   }
 });
 

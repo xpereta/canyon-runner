@@ -147,3 +147,8 @@ button.big:active { background: #2a6497; }
 #cr-slider .knob { position: absolute; left: 4px; right: 4px; height: 22px; bottom: 0;
   border-radius: 6px; background: rgba(130,190,250,.85); }
 #cr-flapbtns { display: flex; gap: 10px; }
+
+/* Sensor diagnostics remain available even when permission fails. */
+#motion-btn { position: fixed; z-index: 45; top: 12px; left: 12px; padding: 12px; background: #1d4f7c; color: white; border-radius: 10px; }
+#motion-btn[hidden], #cr-gyro-debug[hidden] { display: none; }
+#cr-gyro-debug { top: calc(55px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); max-width: min(85vw, 420px); white-space: pre-line; font-size: 12px; line-height: 1.45; }

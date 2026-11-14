@@ -7,10 +7,9 @@ Static ES modules — no bundler, no npm dependencies. THREE is vendored in
 ## How to play (iPhone / iPad)
 
 1. Open the URL in Safari (or Add to Home Screen for fullscreen).
-2. Tap **TAP TO BEGIN** (this is the required user gesture).
-3. Tap **Enable motion controls** and allow motion & orientation access.
-4. Hold the device **level** (about 45° nose-up is a comfy neutral) and **tilt to
-   steer** — pitch fore/aft = elevator, roll left/right = aileron.
+2. Open over HTTPS, tap **TAP TO BEGIN**, and allow motion & orientation access when prompted. If denied, use **Enable motion controls** to retry.
+3. Hold your preferred neutral pose while the first sensor reading arrives, then tilt to steer — pitch fore/aft = elevator, roll left/right = aileron.
+4. Tap **GYRO DEBUG** to see permission, HTTPS status, event counts, raw and neutral angles, screen angle and control axes. If events remain at zero, check Safari motion permissions and HTTPS.
 5. Use the on-screen widgets: throttle slider (right edge), **FLAPS +/−**,
    **RECENTER GYRO** (re-captures your current hold pose as neutral), **RESET**
    (instant return to the runway).
@@ -18,8 +17,8 @@ Static ES modules — no bundler, no npm dependencies. THREE is vendored in
    with pitch-up), and thread the canyon. Crashing freezes briefly, then you
    respawn on the runway.
 
-Landscape is the promoted orientation; the game still runs in portrait behind a
-rotate hint.
+Landscape is the promoted orientation; the game also runs in portrait behind a
+rotate hint. The mapping uses device beta/gamma without rotating axes for screen orientation; check the debug readout and recenter after rotating. Physical behavior in landscape has not been verified on an iPad.
 
 ### Keyboard fallback (desktop or motion denied)
 

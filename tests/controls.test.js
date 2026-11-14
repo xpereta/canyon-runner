@@ -207,3 +207,27 @@ test('createGyro: GYRO_SMOOTH low-pass passthrough', () => {
   for (let i = 0; i < 60; i++) assert.ok(g.read().rollAxis <= 1);
   assert.ok(g.read().rollAxis > 0.9, 'converges eventually');
 });
+
+
+test('gyro automatically centers the first valid upright sample', () => {
+  const win = fakeWin();
+  const g = createGyro(win, { GYRO_SMOOTH: 0 });
+  g.start();
+  win.emit('deviceorientation', { beta: 90, gamma: 0 });
+  assert.equal(g.read().pitchAxis, 0);
+  win.emit('deviceorientation', { beta: 100, gamma: 0 });
+  assert.ok(g.read().pitchAxis < 0);
+});
+
+test('gyro diagnostics distinguish waiting, invalid and valid events', () => {
+  const win = fakeWin(true);
+  const g = createGyro(win, { GYRO_SMOOTH: 0 });
+  g.start();
+  assert.equal(g.diagnostics().events, 0);
+  win.emit('deviceorientation', { beta: null, gamma: null });
+  assert.equal(g.diagnostics().invalidEvents, 1);
+  win.emit('deviceorientation', { beta: 90, gamma: 2 });
+  assert.equal(g.diagnostics().neutral.beta, 90);
+  assert.equal(g.diagnostics().raw.gamma, 2);
+  assert.equal(g.diagnostics().events, 2);
+});

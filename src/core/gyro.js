@@ -37,7 +37,6 @@ function tiltAxis(delta, range, dead) {
 
 export function createGyro(win, cfg) {
   const smooth = cfg?.GYRO_SMOOTH ?? CONTROLS?.GYRO_SMOOTH ?? 0.25;
-  const bias = cfg?.TILT_PITCH_BIAS ?? CONTROLS?.TILT_PITCH_BIAS ?? 0;
   const doe = win?.DeviceOrientationEvent;
 
   let neutral = null;   // captured pose at start()/recalibrate()
@@ -45,6 +44,7 @@ export function createGyro(win, cfg) {
   let filt = { pitchAxis: 0, rollAxis: 0 };
   let onOrient = null;
   let isActive = false;
+  let events = 0, invalidEvents = 0, permission = doe ? (typeof doe.requestPermission === 'function' ? 'prompt' : 'not required') : 'unavailable';
 
   function needsPermission() {
     return typeof doe?.requestPermission === 'function'; // iOS 13+ heuristic
@@ -54,23 +54,28 @@ export function createGyro(win, cfg) {
     if (typeof doe?.requestPermission !== 'function') return true;
     try {
       const res = await doe.requestPermission();
+      permission = res;
       return res === 'granted';
-    } catch { return false; }
+    } catch { permission = 'error'; return false; }
   }
 
   function recalibrate() {
     neutral = latest
       ? { beta: latest.beta, gamma: latest.gamma }
-      : { beta: 45, gamma: 0 };
+      : null;
     filt = { pitchAxis: 0, rollAxis: 0 };
   }
 
   function start() {
     if (isActive || !win?.addEventListener) return;
+    latest = null;
+    neutral = null;
     onOrient = (e) => {
+      events++;
       if (Number.isFinite(e?.beta) && Number.isFinite(e?.gamma)) {
         latest = { beta: e.beta, gamma: e.gamma };
-      }
+        if (!neutral) recalibrate();
+      } else invalidEvents++;
     };
     win.addEventListener('deviceorientation', onOrient);
     recalibrate();
@@ -94,7 +99,13 @@ export function createGyro(win, cfg) {
     return { pitchAxis: filt.pitchAxis, rollAxis: filt.rollAxis };
   }
 
-  const g = { needsPermission, requestPermission, start, stop, read, recalibrate };
+  function diagnostics() {
+    return { permission, secure: !!win?.isSecureContext, active: isActive, events, invalidEvents,
+      raw: latest && { ...latest }, neutral: neutral && { ...neutral }, axes: { ...filt },
+      screenAngle: win?.screen?.orientation?.angle ?? win?.orientation ?? 0 };
+  }
+
+  const g = { needsPermission, requestPermission, start, stop, read, recalibrate, diagnostics };
   Object.defineProperty(g, 'active', { get: () => isActive });
   return g;
 }

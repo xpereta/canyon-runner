@@ -367,8 +367,13 @@ export function createHud(doc, terrain) {
   root.appendChild(stallEl);
   root.appendChild(crashEl);
   root.appendChild(vignette);
-  root.appendChild(gyroDebug);
-  root.appendChild(ctrlDbg);
+  // Debug panels live in one stacked column under the minimap: control bars
+  // first (primary diagnostic), raw-gyro text under it. Column is scrollable
+  // so short landscape viewports still reach both panels.
+  const dbgCol = div('cr-dbgcol');
+  dbgCol.appendChild(ctrlDbg);
+  dbgCol.appendChild(gyroDebug);
+  root.appendChild(dbgCol);
   root.appendChild(widgets);
   root.appendChild(slider);
   doc.body.appendChild(root);
@@ -429,6 +434,10 @@ export function createHud(doc, terrain) {
     on = !!on;
     gyroDebug.hidden = !on;
     ctrlDbg.hidden = !on;
+    // Shrink the minimap while debugging: frees the left column so the debug
+    // stack fits on short landscape viewports (iPhone landscape = 375px tall).
+    root.style.setProperty?.('--cr-mm', (on ? 120 : SIZE) + 'px');
+    root.style['--cr-mm'] = (on ? 120 : SIZE) + 'px';
     gyroToggle.classList.toggle('on', on);
     if (debugCb) debugCb(on);
   }
